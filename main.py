@@ -11,7 +11,11 @@ T = TypeVar('T')
 
 
 def merge_sort(items: list[T], key: Callable) -> list[T]:
-    """Stable merge sort: O(n log n) time and O(n) auxiliary space."""
+    """입력 items를 변경하지 않고 key 기준으로 안정 정렬한 새 리스트를 반환합니다.
+
+    key는 서로 비교 가능한 값을 반환해야 하며, 비교 불가능하면 TypeError가 전파됩니다.
+    빈 입력은 []를 반환합니다. 키 계산·비교가 O(1)일 때 시간 O(n log n), 공간 O(n)입니다.
+    """
     result = list(items)
     width = 1
     while width < len(result):
@@ -62,19 +66,25 @@ class InvertedIndex:
         if not tokens:
             return []
         postings = [self.keywords.get(token, []) for token in tokens]
-        # Multi-word queries mean AND across normalized, exact tokens.
+        # 여러 토큰은 AND 검색입니다. dict 조회는 평균 O(1)이지만 충돌이 심하면 O(N)입니다.
+        # 긴 게시 목록을 set으로 복사하므로 흔한 토큰 검색은 추가 메모리를 많이 사용합니다.
         smallest = min(postings, key=len)
         memberships = [set(posting) for posting in postings]
         return [h for h in smallest if all(h in group for group in memberships)]
 
 
 def topological_order(commits: dict[str, Commit]) -> list[str]:
-    """Kahn traversal over all branches, always emitting parents first."""
+    """해시→Commit 사전을 받아 부모 우선 순서의 해시 리스트를 반환합니다.
+
+    빈 사전은 []를 반환합니다. 모든 부모가 사전에 존재해야 하며 없으면 KeyError입니다.
+    사이클로 전체 노드를 처리할 수 없으면 ValueError("Invalid commit graph")입니다.
+    """
     degrees = {h: len(c.parents) for h, c in commits.items()}
     children = {h: [] for h in commits}
     for h, commit in commits.items():
         for parent in commit.parents:
             children[parent].append(h)
+    # FIFO 큐로 준비된 노드를 순서대로 처리합니다. 진입 차수 0만 넣어 부모 우선을 보장합니다.
     queue = deque(h for h in commits if degrees[h] == 0)
     result = []
     while queue:
@@ -90,7 +100,11 @@ def topological_order(commits: dict[str, Commit]) -> list[str]:
 
 
 def shortest_path(adjacency: dict[str, set[str]], start: str, end: str) -> list[str]:
-    """BFS with lexical neighbors selects the lexically first shortest path."""
+    """무방향 인접 사전과 시작·도착 해시를 받아 최단 경로 해시 리스트를 반환합니다.
+
+    동률은 경로 문자열 사전순으로 선택하며, 경로가 없으면 []를 반환합니다.
+    양 끝점과 이웃은 사전에 존재해야 합니다. CLI에서는 require_commit으로 먼저 검사합니다.
+    """
     queue = deque([start])
     previous: dict[str, str | None] = {start: None}
     while queue:
@@ -109,7 +123,11 @@ def shortest_path(adjacency: dict[str, set[str]], start: str, end: str) -> list[
 
 
 def ancestors(commits: dict[str, Commit], start: str) -> list[str]:
-    """Iterative DFS finds every ancestor once, without recursion limits."""
+    """커밋 사전과 시작 해시를 받아 자신을 제외한 모든 조상을 DFS 순서로 반환합니다.
+
+    부모가 없으면 []이며 공통 조상은 한 번만 포함합니다. 유효한 DAG를 전제합니다.
+    시작 해시나 부모가 사전에 없으면 KeyError입니다. CLI는 시작 해시를 먼저 검사합니다.
+    """
     visited = set()
     stack = list(commits[start].parents)
     result = []
