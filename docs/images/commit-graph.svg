@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="420" viewBox="0 0 1000 420" role="img" aria-labelledby="title desc">
+<title id="title">Mini Git 커밋 구조</title><desc id="desc">첫 번째 커밋을 부모로 feature의 로그인 커밋과 main의 메인 커밋이 분기한다. PATH는 로그인, 첫 번째, 메인 순서다.</desc>
+<defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#64748b"/></marker></defs>
+<rect width="1000" height="420" rx="20" fill="#f1f5f9"/>
+<g font-family="Apple SD Gothic Neo, Malgun Gothic, sans-serif">
+<text x="42" y="52" font-size="28" font-weight="700" fill="#0f172a">Mini Git · 브랜치 분기와 최단 경로</text>
+<text x="42" y="85" font-size="16" fill="#475569">화살표: 자식 → 부모 · 실행 기록을 바탕으로 작성한 구조도</text>
+<path d="M610 173 L365 234 M610 292 L365 254" stroke="#64748b" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<rect x="45" y="181" width="320" height="112" rx="14" fill="#fff" stroke="#94a3b8"/>
+<text x="67" y="216" font-size="21" fill="#0f172a" font-weight="700">첫 번째 커밋</text><text x="67" y="247" font-size="18" fill="#475569">0000000000000001</text><text x="67" y="275" font-size="15" fill="#475569">공통 부모 · Jiyoung</text>
+<rect x="610" y="119" width="345" height="107" rx="14" fill="#ecfdf5" stroke="#10b981"/>
+<text x="632" y="150" font-size="20" fill="#065f46" font-weight="700">feature · 로그인 기능 추가</text><text x="632" y="181" font-size="18" fill="#065f46">0000000000000002</text><text x="632" y="209" font-size="15" fill="#065f46">부모: 첫 번째 커밋</text>
+<rect x="610" y="247" width="345" height="107" rx="14" fill="#eff6ff" stroke="#3b82f6"/>
+<text x="632" y="278" font-size="20" fill="#1e40af" font-weight="700">main · 메인 기능 추가</text><text x="632" y="309" font-size="18" fill="#1e40af">0000000000000003</text><text x="632" y="337" font-size="15" fill="#1e40af">현재 브랜치 · 부모: 첫 번째 커밋</text>
+<text x="45" y="392" font-size="18" fill="#0f172a">PATH: 000…002 → 000…001 → 000…003 (무방향 연결, 2개 간선)</text></g></svg>

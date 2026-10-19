@@ -12,28 +12,125 @@ python3 main.py
 
 `mini-git>`에서 명령을 반복 입력합니다. `exit`, `quit`, EOF 또는 Ctrl+C로 종료합니다. 명령어 이름은 대소문자를 구분하지 않습니다. 공백을 포함한 인자는 따옴표로 감싸세요.
 
-## 사용 예시
+## 프로젝트 구성
 
 ```text
-INIT "Alice Kim"
-COMMIT "Initial commit"
-BRANCH feature
-SWITCH feature
-COMMIT "Add login feature"
-SWITCH main
-COMMIT "Add payment feature"
-LOG
-SEARCH login
-SEARCH "add feature"
-SEARCH --author="Alice Kim"
-LOG --sort-by=date
-LOG --sort-by=author
-PATH 0000000000000002 0000000000000003
-ANCESTORS 0000000000000003
-QUIT
+project_history/
+├── main.py                  # REPL, 저장소, 그래프 탐색, 역색인, 병합 정렬
+├── README.md                # 실행 방법, 실행 기록, 설계 설명
+├── tests/
+│   └── test_main.py         # 기능 및 알고리즘 테스트
+└── docs/images/
+    └── commit-graph.svg     # 실행 예시의 커밋 구조 그림
 ```
 
-위 PATH의 결과는 `0000000000000002->0000000000000001->0000000000000003`입니다. 해시는 첫 커밋부터 증가하는 16자리 이상의 16진수이며, 한 세션에서 중복되지 않습니다.
+## 처음 실행하는 사람을 위한 순서
+
+1. 터미널에서 이 프로젝트 폴더를 열고 `python3 main.py`를 실행합니다.
+2. `mini-git>`이 나타나면 `INIT Jiyoung`으로 저장소를 초기화합니다.
+3. `COMMIT "첫 번째 커밋"`으로 공통 부모가 될 커밋을 만듭니다.
+4. `BRANCH feature`로 브랜치를 만들고 `SWITCH feature`로 이동합니다.
+5. 로그인 커밋을 만든 뒤 `SWITCH main`으로 돌아와 메인 커밋을 만듭니다.
+6. `LOG`, `SEARCH`, `ANCESTORS`, `PATH`로 결과를 확인합니다.
+7. `QUIT`으로 종료하면 일반 터미널로 돌아옵니다.
+
+`mini-git>`은 프로그램이 표시하는 프롬프트이므로 직접 입력하지 않습니다. `%` 또는 `$`가 표시되는 일반 터미널에서는 `python3 main.py`, `pwd`, 실제 Git 명령을 사용하고, `mini-git>`에서는 아래 Mini Git 명령을 사용합니다. 코드 블록의 명령은 한 줄씩 입력하고 Enter를 누르세요.
+
+## 실행 결과 그림
+
+아래 그림은 실행 기록을 바탕으로 작성한 커밋 구조도입니다. 실제 터미널 화면 캡처가 아닙니다.
+
+![첫 번째 커밋에서 feature와 main이 갈라지는 커밋 구조](docs/images/commit-graph.svg)
+
+첫 번째 커밋을 공유한 상태에서 두 브랜치가 각각 새 커밋을 만듭니다. 따라서 세 번째 커밋의 조상은 첫 번째 커밋이며, 두 번째 커밋은 조상이 아닙니다. PATH는 부모 연결을 무방향으로 보기 때문에 두 번째 → 첫 번째 → 세 번째 순서로 이동할 수 있습니다.
+
+## 실제 실행 예시
+
+아래는 사용자가 실행한 결과를 바탕으로 정리한 기록입니다. 명령 앞에 섞인 한글 오타와 중복 실행한 ANCESTORS/PATH는 정리했습니다. 시간은 당시 출력이며, 새로 실행하면 현재 UTC 시간으로 달라집니다. 사용자명과 터미널의 계정·장치 이름도 실행 환경에 따라 달라집니다.
+
+```text
+lee.jy@ijiyeong-ui-noteubug project_history % python3 main.py
+Mini Git — type HELP for commands.
+mini-git> INIT Jiyoung
+Initialized repository.
+Current branch: main
+Current user: Jiyoung
+mini-git> COMMIT "첫 번째 커밋"
+[main 0000000000000001] 첫 번째 커밋
+mini-git> LOG
+commit 0000000000000001 (Jiyoung, 2026-10-19T01:33:48.941489+00:00) [main]
+  첫 번째 커밋
+mini-git> BRANCH feature
+Created branch: feature
+mini-git> SWITCH feature
+Switched to branch: feature
+mini-git> COMMIT "로그인 기능 추가"
+[feature 0000000000000002] 로그인 기능 추가
+mini-git> SWITCH main
+Switched to branch: main
+mini-git> COMMIT "메인 기능 추가"
+[main 0000000000000003] 메인 기능 추가
+mini-git> LOG
+commit 0000000000000001 (Jiyoung, 2026-10-19T01:33:48.941489+00:00)
+  첫 번째 커밋
+commit 0000000000000002 (Jiyoung, 2026-10-19T01:37:13.167736+00:00) [feature]
+  로그인 기능 추가
+commit 0000000000000003 (Jiyoung, 2026-10-19T01:37:22.830939+00:00) [main]
+  메인 기능 추가
+mini-git> SEARCH "로그인"
+Found 1 commit(s):
+commit 0000000000000002 (Jiyoung, 2026-10-19T01:37:13.167736+00:00) [feature]
+  로그인 기능 추가
+mini-git> SEARCH --author=Jiyoung
+Found 3 commit(s):
+commit 0000000000000001 (Jiyoung, 2026-10-19T01:33:48.941489+00:00)
+  첫 번째 커밋
+commit 0000000000000002 (Jiyoung, 2026-10-19T01:37:13.167736+00:00) [feature]
+  로그인 기능 추가
+commit 0000000000000003 (Jiyoung, 2026-10-19T01:37:22.830939+00:00) [main]
+  메인 기능 추가
+mini-git> LOG --sort-by=date
+commit 0000000000000001 (Jiyoung, 2026-10-19T01:33:48.941489+00:00)
+  첫 번째 커밋
+commit 0000000000000002 (Jiyoung, 2026-10-19T01:37:13.167736+00:00) [feature]
+  로그인 기능 추가
+commit 0000000000000003 (Jiyoung, 2026-10-19T01:37:22.830939+00:00) [main]
+  메인 기능 추가
+mini-git> LOG --sort-by=author
+commit 0000000000000001 (Jiyoung, 2026-10-19T01:33:48.941489+00:00)
+  첫 번째 커밋
+commit 0000000000000002 (Jiyoung, 2026-10-19T01:37:13.167736+00:00) [feature]
+  로그인 기능 추가
+commit 0000000000000003 (Jiyoung, 2026-10-19T01:37:22.830939+00:00) [main]
+  메인 기능 추가
+mini-git> ANCESTORS 0000000000000003
+commit 0000000000000001 (Jiyoung, 2026-10-19T01:33:48.941489+00:00)
+  첫 번째 커밋
+mini-git> PATH 0000000000000002 0000000000000003
+Path: 0000000000000002->0000000000000001->0000000000000003
+mini-git> QUIT
+Bye!
+lee.jy@ijiyeong-ui-noteubug project_history %
+```
+
+### 결과 해석
+
+| 확인 항목 | 실행 결과와 의미 |
+| --- | --- |
+| 초기화 | main 브랜치와 작성자 Jiyoung이 설정됨 |
+| 브랜치 분기 | feature는 두 번째 커밋, main은 세 번째 커밋을 가리킴 |
+| 부모 우선 로그 | 첫 번째 커밋이 두 자식 커밋보다 먼저 출력됨 |
+| 키워드 검색 | `로그인` 토큰이 포함된 두 번째 커밋만 검색됨 |
+| 작성자 검색 | Jiyoung이 작성한 커밋 3개가 검색됨 |
+| 날짜 정렬 | 첫 번째 → 두 번째 → 세 번째 순서로 출력됨 |
+| 작성자 정렬 | 모두 같은 작성자이므로 생성 순서가 유지됨 |
+| 조상 탐색 | 세 번째 커밋의 조상인 첫 번째 커밋만 출력됨 |
+| 최단 경로 | 두 번째 → 첫 번째 → 세 번째, 총 2개 간선 |
+| 종료 | `Bye!` 출력 후 일반 터미널로 복귀 |
+
+커밋 옆의 `[main]`, `[feature]`는 해당 커밋을 현재 가리키는 브랜치입니다. 첫 커밋 옆의 `[main]` 표시는 main에 새 커밋을 만들면 새 커밋으로 이동합니다. 커밋 자체의 작성자나 메시지가 바뀌는 것은 아닙니다.
+
+해시는 첫 커밋부터 증가하는 16자리 이상의 16진수이며, 한 세션에서 중복되지 않습니다. `+00:00`은 UTC를 의미하며 한국 시간은 여기에 9시간을 더한 값입니다.
 
 ## 명령어
 
@@ -80,3 +177,21 @@ python3 -m unittest discover -s tests -v
 ```
 
 브랜치 분기와 HEAD, 검색 인덱스, 위상 순서, 정렬 안정성, 최단 경로의 사전순 동률 처리, 분리된 그래프, 공통 조상 중복 제거, 잘못된 입력, 1,000개 커밋의 해시 유일성과 조상 탐색을 검증합니다. 다중 부모 그래프는 알고리즘 단위 검증에만 사용하며 Merge 명령은 구현하지 않습니다.
+
+## 자주 만나는 상황
+
+| 화면 또는 상황 | 이유와 해결 방법 |
+| --- | --- |
+| `mini-git>`만 표시됨 | 정상입니다. 명령 입력을 기다리는 중입니다. |
+| `Repository not initialized` | 먼저 `INIT Jiyoung`을 실행하세요. |
+| `Invalid args` | 인자 개수, 따옴표, 옵션을 확인하세요. 공백이 있는 메시지는 따옴표로 감쌉니다. REPL은 실제 입력도 표시합니다. |
+| `Unknown command: PWD` | Mini Git 안에서 터미널 명령을 입력한 상태입니다. `QUIT` 후 `pwd`를 사용하세요. |
+| 다시 켰더니 기록이 없음 | 메모리 기반 프로그램이므로 정상입니다. INIT부터 다시 실행하세요. |
+| `LOG --sort-by=author` 결과가 날짜순과 같음 | 작성자가 모두 같으면 안정 정렬에 의해 생성 순서가 유지됩니다. |
+| `No path` | 두 커밋이 서로 연결되지 않은 별도의 루트에서 시작한 경우입니다. |
+
+## 구현 범위와 제출 파일
+
+필수 제출 파일은 `main.py`, `README.md`입니다. 검증을 위한 `tests/`와 README에서 사용하는 `docs/images/`도 함께 저장소에 포함하세요. Diff, Merge, 여러 정렬 알고리즘의 성능 비교는 선택 보너스이므로 구현 범위에서 제외했습니다.
+
+실제 GitHub 업로드는 Mini Git에서 `QUIT`으로 나온 뒤 일반 터미널에서 수행합니다. 이 프로그램의 COMMIT은 실제 Git 커밋이나 파일 백업을 생성하지 않습니다.
