@@ -191,7 +191,7 @@ python3 main.py
 
 ## 10. 실제 실행 기록과 결과 해석
 
-### 명령별 실행 화면
+### 명령별 실행 화면과 코드 동작 설명
 
 아래는 직접 실행하며 촬영한 터미널 화면입니다. 파일 번호와 실행 순서는 다르므로 초기화부터 종료까지의 흐름에 맞춰 배치했습니다. 일부 캡처에는 인접 명령의 일부나 입력 흔적이 포함되어 있으며, 따라 입력할 명령은 각 설명과 아래 텍스트 실행 기록을 기준으로 확인하세요.
 
@@ -201,11 +201,43 @@ python3 main.py
 
 ![프로그램 실행과 INIT Jiyoung의 초기화 성공 화면](./docs/images/17.png)
 
+**연결되는 코드 — `main()`과 `MiniGit.execute()`**
+
+```python
+# main(): 입력을 저장소 객체에 전달
+line = input('mini-git> ')
+output = repo.execute(line)
+
+# execute(): 따옴표를 고려해 명령과 인자 분리
+parts = shlex.split(line)
+command, *args = parts
+command = command.upper()
+
+# INIT 분기의 상태 설정
+self.user = args[0]
+self.branches['main'] = None
+```
+
+`INIT Jiyoung`을 분리하면 `command`는 INIT, `args`는 `['Jiyoung']`입니다. `self`는 실행 중인 저장소 객체이고, `args[0]`은 첫 번째 인자입니다. 객체 생성 시 현재 브랜치 이름은 main으로 설정됩니다. INIT은 사용자와 빈 HEAD를 저장한 뒤 성공 문구를 반환합니다. 재초기화와 인자 검사는 발췌에서 생략했습니다.
+
 #### 2) 첫 번째 커밋과 로그
 
 `COMMIT "첫 번째 커밋"`으로 부모 없는 루트 커밋을 생성했습니다. LOG에서 작성자, UTC 시간, 메시지와 main 브랜치 위치를 확인할 수 있습니다. 캡처의 LOG 앞 한글 입력 흔적은 명령어의 일부가 아닙니다.
 
 ![첫 번째 커밋 생성과 단일 커밋 로그](./docs/images/01.png)
+
+**연결되는 코드 — COMMIT 분기**
+
+```python
+self.counter += 1
+h = f'{self.counter:016x}'
+head = self.branches[self.branch]
+parents = (head,) if head is not None else ()
+c = Commit(h, args[0], self.user, datetime.now(timezone.utc), parents)
+self.commits[h] = c
+```
+
+`+= 1`은 카운터를 하나 늘립니다. `016x`는 정수를 최소 16자리의 16진수로 바꾸고 앞을 0으로 채웁니다. 첫 해시는 `0000000000000001`입니다. HEAD가 None이므로 부모는 빈 튜플 `()`이고, `(head,)`는 부모가 있을 때 만드는 원소 한 개짜리 튜플입니다. 메시지·작성자·UTC 시간을 커밋으로 묶어 해시를 키로 저장합니다. 이후 HEAD와 인덱스도 갱신하므로 LOG에서 첫 커밋과 `[main]`이 표시됩니다.
 
 #### 3) feature 브랜치 생성과 전환
 
@@ -214,6 +246,18 @@ python3 main.py
 ![BRANCH feature로 새 브랜치 생성](./docs/images/02.png)
 
 ![SWITCH feature로 작업 브랜치 전환](./docs/images/03.png)
+
+**연결되는 코드 — BRANCH와 SWITCH 분기**
+
+```python
+# BRANCH feature
+self.branches[args[0]] = self.branches[self.branch]
+
+# SWITCH feature
+self.branch = args[0]
+```
+
+첫 줄은 현재 main의 HEAD 해시를 새 키 feature의 값으로 복사합니다. 커밋 자체를 복제하지는 않습니다. 두 번째 줄은 현재 선택한 브랜치 이름을 feature로 변경합니다. 따라서 BRANCH만 실행하면 여전히 main이고, SWITCH까지 실행해야 이후 커밋이 feature에 연결됩니다.
 
 #### 4) 브랜치별 커밋 생성
 
@@ -225,11 +269,44 @@ feature에서 로그인 커밋을 생성한 뒤 main으로 전환해 메인 커�
 
 ![main 브랜치에서 메인 기능 추가 커밋 생성](./docs/images/06.png)
 
+**연결되는 코드 — 부모 연결과 현재 브랜치 HEAD 갱신**
+
+```python
+self.adjacency[h] = set(parents)
+for parent in parents:
+    self.adjacency[parent].add(h)
+self.branches[self.branch] = h
+self.index.add(c)
+```
+
+`set(parents)`는 새 커밋에서 부모로 가는 연결을 만들고, `add(h)`는 부모에서 새 자식으로 가는 연결을 추가합니다. 이 양방향 인접 정보는 PATH에 사용합니다. 커밋의 `parents` 자체는 부모 방향만 유지합니다.
+
+현재 브랜치의 HEAD만 새 해시로 갱신합니다. 로그인 커밋 후에는 feature가 2번, main이 1번을 가리킵니다. main으로 돌아와 메인 커밋을 만들면 main이 3번으로 이동하며, 두 새 커밋 모두 1번을 부모로 갖습니다. 마지막 `index.add(c)`는 이 커밋을 검색할 수 있도록 역색인을 갱신합니다.
+
 #### 5) 전체 로그와 브랜치 위치
 
 `LOG`에서 부모인 첫 번째 커밋이 두 자식보다 먼저 출력됩니다. feature는 두 번째 커밋, main은 세 번째 커밋을 가리킵니다.
 
 ![부모 우선 LOG와 feature 및 main의 HEAD 위치](./docs/images/07.png)
+
+**연결되는 코드 — `topological_order()`의 Kahn 알고리즘**
+
+```python
+degrees = {h: len(c.parents) for h, c in commits.items()}
+queue = deque(h for h in commits if degrees[h] == 0)
+result = []
+while queue:
+    h = queue.popleft()
+    result.append(h)
+    for child in children[h]:
+        degrees[child] -= 1
+        if degrees[child] == 0:
+            queue.append(child)
+```
+
+위 코드는 자식 목록 `children`을 구성하는 부분을 생략한 발췌입니다. `degrees`는 아직 처리하지 않은 부모의 수입니다. 부모가 없는 커밋부터 큐에 넣고, `popleft()`로 먼저 들어온 것을 먼저 처리합니다. 부모를 처리할 때 자식의 남은 부모 수를 줄이고 0이 되면 큐에 넣습니다.
+
+예시에서는 처음에 1번만 준비되고, 1번을 출력한 뒤 2번과 3번이 준비됩니다. 반환된 해시 목록을 `format_commits()`가 작성자·시간·메시지로 바꿔 출력하므로 부모가 자식보다 먼저 보입니다. 시간은 O(V+E)입니다.
 
 #### 6) 키워드 및 작성자 검색
 
@@ -239,6 +316,23 @@ feature에서 로그인 커밋을 생성한 뒤 main으로 전환해 메인 커�
 
 ![Jiyoung 작성자 검색 결과 커밋 3개와 이어진 날짜 정렬](./docs/images/09.png)
 
+**연결되는 코드 — `InvertedIndex.add()`와 `search()`**
+
+```python
+# 커밋 시 검색 목록 준비
+for token in dict.fromkeys(commit.message.lower().split()):
+    self.keywords.setdefault(token, []).append(commit.hash)
+self.authors.setdefault(commit.author, []).append(commit.hash)
+
+# 작성자 검색 분기
+if author:
+    return list(self.authors.get(query, []))
+```
+
+`lower().split()`은 메시지를 소문자로 바꾸고 공백으로 나눕니다. `dict.fromkeys()`는 같은 토큰을 중복 등록하지 않게 합니다. `setdefault(token, [])`는 키가 없으면 빈 목록을 준비하고, `append()`가 커밋 해시를 추가합니다. `get(query, [])`는 해당 키가 없으면 빈 목록을 반환합니다.
+
+예시에서 로그인 토큰의 게시 목록에는 2번만 있고, 작성자 Jiyoung 목록에는 1·2·3번이 있습니다. 키워드 검색은 토큰별 목록을 가져와 교집합을 구하고, 작성자 검색은 해당 작성자의 목록을 복사합니다. 전체 커밋 메시지를 순회하지 않습니다. 단일 토큰·작성자 조회는 평균 O(1)에 목록을 찾고 결과 k개를 복사하는 O(k)가 필요합니다. 해시는 실제로 전체 문자열을 저장하며 여기서는 끝자리로 설명했습니다.
+
 #### 7) 날짜와 작성자 기준 정렬
 
 `LOG --sort-by=date`는 생성 시간 오름차순으로 출력합니다. `LOG --sort-by=author`에서는 작성자가 모두 같아 안정 정렬에 따라 생성 순서를 유지합니다.
@@ -247,6 +341,25 @@ feature에서 로그인 커밋을 생성한 뒤 main으로 전환해 메인 커�
 
 ![작성자 기준 정렬에서 같은 작성자의 생성 순서 유지](./docs/images/11.png)
 
+**연결되는 코드 — LOG의 옵션 분기와 `merge_sort()`**
+
+```python
+field = 'timestamp' if args[0].endswith('date') else 'author'
+ordered = merge_sort(list(self.commits.values()), key=lambda c: getattr(c, field))
+
+# merge_sort 내부의 병합 판단
+if key(left[i]) <= key(right[j]):
+    merged.append(left[i])
+    i += 1
+else:
+    merged.append(right[j])
+    j += 1
+```
+
+옵션에 따라 `field`가 timestamp 또는 author가 됩니다. `lambda`는 짧은 함수를 만드는 문법이고, `getattr(c, field)`는 지정된 이름의 커밋 속성을 읽습니다. 이 비교 키를 정렬 함수에 전달하므로 알고리즘 하나로 두 정렬을 지원합니다.
+
+병합 정렬은 정렬된 두 묶음에서 앞 원소를 비교해 작은 것을 결과에 넣습니다. `<=`로 동률이면 왼쪽을 먼저 선택하므로 원래 순서가 유지됩니다. 작성자가 모두 같아도 1·2·3번 순서가 유지되는 이유입니다. 키 계산과 비교를 상수로 보면 시간 O(n log n), 보조 공간 O(n)입니다. 옵션 LOG는 지정한 정렬 기준을 우선하며 기본 LOG의 위상 순서와 구분됩니다.
+
 #### 8) 조상 탐색과 최단 경로
 
 `ANCESTORS 0000000000000003`은 세 번째 커밋의 조상인 첫 번째 커밋만 출력합니다. `PATH 0000000000000002 0000000000000003`은 두 번째 → 첫 번째 → 세 번째 경로를 출력합니다.
@@ -254,6 +367,38 @@ feature에서 로그인 커밋을 생성한 뒤 main으로 전환해 메인 커�
 ![ANCESTORS로 세 번째 커밋의 조상 조회](./docs/images/12.png)
 
 ![PATH로 두 번째에서 세 번째 커밋까지의 최단 경로 조회](./docs/images/13.png)
+
+**연결되는 코드 — `ancestors()`의 DFS**
+
+```python
+visited = set()
+stack = list(commits[start].parents)
+result = []
+while stack:
+    h = stack.pop()
+    if h not in visited:
+        visited.add(h)
+        result.append(h)
+        stack.extend(commits[h].parents)
+```
+
+시작 커밋 자체가 아니라 그 부모를 스택에 넣습니다. `pop()`은 마지막에 넣은 항목을 꺼내고, `extend()`는 찾은 커밋의 부모들을 스택에 추가합니다. `visited`는 공통 조상을 중복 출력하지 않게 합니다. 3번의 부모는 1번이고 1번에는 부모가 없어 결과는 1번 하나입니다. 형제 위치인 2번은 포함되지 않습니다. 도달 가능한 그래프에서 O(V+E)입니다.
+
+**연결되는 코드 — `shortest_path()`의 BFS**
+
+```python
+queue = deque([start])
+previous = {start: None}
+# while 반복문 안에서 현재 노드를 꺼낸 뒤 이웃 검사
+for neighbor in merge_sort(list(adjacency[current]), key=lambda h: h):
+    if neighbor not in previous:
+        previous[neighbor] = current
+        queue.append(neighbor)
+```
+
+위 코드는 BFS의 초기화와 이웃 등록 부분입니다. 큐에서 가까운 순서대로 꺼내 탐색하므로 간선 수가 최소인 경로를 얻습니다. `previous`는 방문 여부와 직전 노드를 저장합니다. 이웃을 직접 구현한 병합 정렬로 정렬해 동률 경로의 사전순 규칙을 적용합니다.
+
+이 예시의 방문 흐름은 2번 → 1번 → 3번입니다. 도착 후 `previous`를 따라 역순으로 경로를 모으고 `path[::-1]`로 뒤집어 출력합니다. BFS 자체는 O(V+E)이며 현재 구현에는 이웃 정렬 비용이 추가됩니다. DFS는 부모만 따라 조상을 찾고, BFS는 양방향 인접 정보를 따라 두 점 사이 최단 경로를 찾는다는 차이가 있습니다.
 
 <details>
 <summary>같은 명령을 다시 실행한 확인 화면 2개</summary>
@@ -271,6 +416,22 @@ feature에서 로그인 커밋을 생성한 뒤 main으로 전환해 메인 커�
 `QUIT`을 실행하면 `Bye!`를 출력하고 REPL이 종료됩니다. 이 시점에 메모리의 커밋 기록은 사라집니다.
 
 ![QUIT 명령과 Bye 종료 메시지](./docs/images/16.png)
+
+**연결되는 코드 — `execute()`의 종료 신호와 `main()`의 반복 종료**
+
+```python
+# execute(): EXIT 또는 QUIT이면 종료 문구 반환
+if command in ('EXIT', 'QUIT'):
+    if args:
+        raise ValueError('Invalid args')
+    return 'Bye!'
+
+# main(): 결과 출력 후 반복문 종료
+if output == 'Bye!':
+    break
+```
+
+`return`은 명령 처리 함수의 실행을 끝내고 결과를 전달합니다. `break`는 main의 입력 반복문을 끝냅니다. 따라서 화면에 Bye!가 출력되고 일반 터미널로 돌아옵니다. HELP는 종료하지 않고 명령 형식을 안내합니다. 인자 오류와 존재하지 않는 브랜치·커밋은 검사 후 메시지로 반환해 REPL을 계속 유지합니다.
 
 ### 텍스트 실행 기록
 
